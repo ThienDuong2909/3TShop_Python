@@ -43,6 +43,8 @@ def extract_features(img_data):
 @app.route('/api/train', methods=['POST'])
 def train_model():
     try:
+        # filenames = pickle.load(open('filenames.pkl', 'rb'))
+        # feature_list = pickle.load(open('embeddings.pkl', 'rb'))
         # Kết nối cơ sở dữ liệu
         conn = pymysql.connect(
             host='localhost',
@@ -64,13 +66,14 @@ def train_model():
         for row in rows:
             img_data = row[0]
             product_id = row[1]
-
+            print(product_id)
             # Chỉ thêm ảnh mới
             if product_id not in filenames:
                 features = extract_features(img_data)
                 new_features.append(features)
                 new_filenames.append(product_id)
-
+        print("Current filenames:", filenames)
+        print(new_features)
         # Cập nhật dữ liệu toàn cục
         feature_list.extend(new_features)
         filenames.extend(new_filenames)
@@ -101,26 +104,26 @@ def find_similar_images():
         product_distance_pairs = list(zip(filenames, distances))
 
         sorted_products = sorted(product_distance_pairs, key=lambda x: x[1])
-        # sorted_keys = [key for key, _ in sorted_products]
-        # unique_sorted_keys = []
-        # seen = set()
-        # for key in sorted_keys:
-        #     if key not in seen:
-        #         unique_sorted_keys.append(key)
-        #         seen.add(key)
-        #
-        # response = [{"product_id": prod} for prod in unique_sorted_keys]
-        # return jsonify(response)
-        product_best_match = {}
+        sorted_keys = [key for key, _ in sorted_products]
+        unique_sorted_keys = []
+        seen = set()
+        for key in sorted_keys:
+            if key not in seen:
+                unique_sorted_keys.append(key)
+                seen.add(key)
 
-        for product_id, distance in sorted_products:
-            if product_id not in product_best_match:
-                product_best_match[product_id] = distance
-
-        response = [{"product_id": product_id, "distance": product_best_match[product_id]}
-                    for product_id in product_best_match]
-        print(response)
+        response = [{"product_id": prod} for prod in unique_sorted_keys]
         return jsonify(response)
+        # product_best_match = {}
+        #
+        # for product_id, distance in sorted_products:
+        #     if product_id not in product_best_match:
+        #         product_best_match[product_id] = distance
+        #
+        # response = [{"product_id": product_id, "distance": product_best_match[product_id]}
+        #             for product_id in product_best_match]
+        # print(response)
+        # return jsonify(response)
 
     except Exception as e:
         print(f"Error: {e}")
@@ -133,7 +136,8 @@ def user_feedback():
         data = request.get_json()
         img_data = data['image_data']
         product_id = data['product_id']
-        feedback = data['feedback']
+        feedback =  data['feedback']
+        print(data)
         features = extract_features(img_data)
         distances = np.linalg.norm(np.array(feature_list) - features, axis=1)
         distances = distances.astype(float)
@@ -145,8 +149,8 @@ def user_feedback():
         if matching_products:
             best_match = min(matching_products, key=lambda x: x[1])
             best_product_id, best_distance = best_match
-
-            if feedback and  0 < best_distance < 0.5 :
+            print("bestmatch",best_match)
+            if feedback and  0 < best_distance < 0.7 :
                 conn = pymysql.connect(
                     host='localhost',
                     port=3306,
